@@ -8,7 +8,37 @@
     padding: 30px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    user-select: none; // 防止拖拽时选中文字
+    user-select: none;
+    transition: all 0.3s ease;
+
+    // 添加呼吸动画
+    @keyframes breathe {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      50% {
+        transform: scale(1.02);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+    }
+
+    // 连接完所有格子后的状态
+    &.connected {
+      animation: breathe 2s infinite ease-in-out;
+
+      &.success {
+        background-color: rgba(200, 230, 201, 0.2);
+      }
+
+      &.error {
+        background-color: rgba(255, 205, 210, 0.2);
+      }
+    }
 
     .grid-row {
       display: flex;
@@ -29,6 +59,13 @@
         cursor: pointer;
         border: 2px solid transparent;
 
+        // hover 效果应用于所有格子
+        &:hover {
+          transform: scale(1.05);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        // 提示格子样式
         &.filled {
           background-color: #bcdffc;
           color: #333;
@@ -37,19 +74,23 @@
           &.error {
             background-color: #ffcdd2;
             border-color: #ef5350;
-            color: #333;
           }
         }
 
-        &.in-path {
-          background-color: #90caf9;
-          border-color: #42a5f5;
-          transform: scale(1.05);
-        }
+        // 只有非提示格子才显示路径样式
+        &:not(.filled) {
+          &.in-path {
+            background-color: #90caf9;
+            border-color: #42a5f5;
+            transform: scale(1.05);
+          }
 
-        &:hover {
-          transform: scale(1.05);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          // 完成状态的样式
+          &.complete {
+            background-color: #c8e6c9;
+            border-color: #81c784;
+            transform: scale(1.05);
+          }
         }
       }
     }

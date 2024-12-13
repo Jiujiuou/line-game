@@ -9,6 +9,8 @@ const Game = () => {
   const [path, setPath] = useState([]); // 当前绘制的路径
   const [currentCell, setCurrentCell] = useState(null); // 当前选中的格子
   const [errors, setErrors] = useState(new Set()); // 记录错误的格子位置
+  const [isComplete, setIsComplete] = useState(false); // 是否完成并且正确
+  const [isAllConnected, setIsAllConnected] = useState(false); // 是否连接所有格子
 
   useEffect(() => {
     init();
@@ -21,6 +23,8 @@ const Game = () => {
     setPath([]);
     setCurrentCell(null);
     setErrors(new Set());
+    setIsComplete(false);
+    setIsAllConnected(false);
   };
 
   // 检查两个格子是否相邻
@@ -74,6 +78,8 @@ const Game = () => {
     setCurrentCell(newCell);
     setPath([newCell]);
     setErrors(new Set());
+    setIsComplete(false);
+    setIsAllConnected(false);
     validateHintCell(row, col, 1);
   };
 
@@ -95,9 +101,21 @@ const Game = () => {
     }
   };
 
+  // 检查是否完成并且正确
+  const checkCompletion = (currentPath) => {
+    // 检查是否所有格子都被连接
+    const isAllCellsConnected = currentPath.length === GRID_SIZE * GRID_SIZE;
+    // 检查是否没有错误
+    const hasNoErrors = errors.size === 0;
+    
+    setIsAllConnected(isAllCellsConnected);
+    setIsComplete(isAllCellsConnected && hasNoErrors);
+  };
+
   // 处理鼠标松开事件
   const handleMouseUp = () => {
     setIsDragging(false);
+    checkCompletion(path);
   };
 
   // 获取格子显示的数字
@@ -117,10 +135,20 @@ const Game = () => {
       if (errors.has(`${row}-${col}`)) {
         classes.push("error");
       }
-    }
-    const pathIndex = isInPath(row, col);
-    if (pathIndex !== -1) {
+    } else if (isComplete && isInPath(row, col) !== -1) {
+      classes.push("complete"); // 添加完成状态的类名
+    } else if (isInPath(row, col) !== -1) {
       classes.push("in-path");
+    }
+    return classes.join(" ");
+  };
+
+  // 获取网格容器的类名
+  const getGridContainerClassName = () => {
+    const classes = ["grid"];
+    if (isAllConnected) {
+      classes.push("connected");
+      classes.push(isComplete ? "success" : "error");
     }
     return classes.join(" ");
   };
@@ -128,7 +156,7 @@ const Game = () => {
   return (
     <div className="wrapper">
       <div 
-        className="grid"
+        className={getGridContainerClassName()}
         onMouseLeave={() => setIsDragging(false)}
         onMouseUp={handleMouseUp}
       >
