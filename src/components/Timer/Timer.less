@@ -1,0 +1,52 @@
+.timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  user-select: none;
+  background-color: #f0f7e6;
+
+  .digit {
+    position: relative;
+    display: inline-block;
+    font-size: 48px;
+    line-height: 1;
+    font-weight: bold;
+    color: #000;
+    width: 0.6em;
+    text-align: center;
+    font-family: "LCD", monospace;
+    clip-path: polygon(
+      30% 0%,
+      70% 0%,
+      100% 30%,
+      100% 70%,
+      70% 100%,
+      30% 100%,
+      0% 70%,
+      0% 30%
+    );
+  }
+
+  .separator {
+    font-size: 48px;
+    margin: 0 5px;
+    color: #000;
+    font-weight: bold;
+    animation: blink 1s infinite;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* LCD数字字体样式 */
+@font-face {
+  font-family: "LCD";
+  src: url("data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAoIAA8AAAAAEbQAAAmxAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP0ZGVE0cGh4GYACCWggEEQgKjByMNQE2AiQDJAsuAAQgBYIYB2AMMgfBIR/7JqOYtLsq8v8/JydiyAFrPw0iqNZW3S1MmGHWxhSxRYjFIhbxiNu0RRKRZhE7jL3Yy9Q9cFDRNkXaJhE7/v/ft/OZO/f9P0lIEv3jeb7v+Z97d+4XUQCpAIBgQBlUFoRh7e0dXZ3/kBsdnV393V29IUB+wf8PTM0sUNDKysYOAA==") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+}

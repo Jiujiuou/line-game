@@ -4,7 +4,7 @@ import { GRID_SIZE } from "../../constant";
 import "./Game.less";
 import Confetti from "../Confetti";
 
-const Game = () => {
+const Game = ({ onComplete }) => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
   const [isDrawing, setIsDrawing] = useState(false); // 是否正在绘制
   const [path, setPath] = useState([]); // 当前绘制的路径
@@ -235,6 +235,13 @@ const Game = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [path]);
+
+  // 在 useEffect 中检测游戏完成
+  useEffect(() => {
+    if (isComplete) {
+      onComplete && onComplete();
+    }
+  }, [isComplete, onComplete]);
 
   return (
     <div className="wrapper">
