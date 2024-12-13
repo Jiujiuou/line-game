@@ -1,9 +1,9 @@
 // import { useState } from "react";
 import "./App.css";
-import Game2 from "./components/Game/Game";
+import Layout from "./components/Layout/Layout";
 
 function App() {
-  return <Game2 />;
+  return <Layout />;
 }
 
 export default App;
