@@ -5,13 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
+    "build": "vite build && node afterbuild.cjs",
+    "afterbuild": "node afterbuild.cjs",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run build && git add index.html"
+    }
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "vite-plugin-singlefile": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
@@ -23,6 +30,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
+    "husky": "^9.1.7",
     "less": "^4.2.1",
     "vite": "^6.0.1"
   }
