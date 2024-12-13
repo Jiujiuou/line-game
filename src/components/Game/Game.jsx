@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { generateInitialArray, getSolution } from "../../utils";
 import { GRID_SIZE } from "../../constant";
 import "./Game.less";
+import Confetti from "../Confetti";
 
 const Game = () => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
@@ -155,6 +156,7 @@ const Game = () => {
 
   return (
     <div className="wrapper">
+      {isComplete && <Confetti isActive={true} />}
       <div 
         className={getGridContainerClassName()}
         onMouseLeave={() => setIsDragging(false)}
