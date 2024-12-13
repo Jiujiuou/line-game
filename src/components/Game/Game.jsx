@@ -6,7 +6,7 @@ import Confetti from "../Confetti";
 
 const Game = () => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
-  const [isDragging, setIsDragging] = useState(false); // 是否正在拖拽
+  const [isDrawing, setIsDrawing] = useState(false); // 是否正在绘制
   const [path, setPath] = useState([]); // 当前绘制的路径
   const [currentCell, setCurrentCell] = useState(null); // 当前选中的格子
   const [errors, setErrors] = useState(new Set()); // 记录错误的格子位置
@@ -76,7 +76,7 @@ const Game = () => {
 
   // 处理鼠标按下事件
   const handleMouseDown = (row, col) => {
-    setIsDragging(true);
+    setIsDrawing(true);
     const newCell = { row, col };
     setCurrentCell(newCell);
     setPath([newCell]);
@@ -88,20 +88,33 @@ const Game = () => {
 
   // 处理鼠标移动事件
   const handleMouseEnter = (row, col) => {
-    if (!isDragging) return;
+    if (!isDrawing) return;
 
-    const newCell = { row, col };
-    if (isInPath(row, col) !== -1) return; // 如果格子已在路径中，忽略
+    // 检查是否是相邻格子
+    const lastPoint = path[path.length - 1];
+    const isAdjacent = Math.abs(row - lastPoint.row) + Math.abs(col - lastPoint.col) === 1;
+    if (!isAdjacent) return;
 
-    // 检查是否与当前格子相邻
-    if (isAdjacent(currentCell, newCell)) {
-      setPath(prevPath => {
-        const newPath = [...prevPath, newCell];
-        validateHintCell(row, col, newPath.length);
-        return newPath;
-      });
-      setCurrentCell(newCell);
+    // 检查是否回到了之前的格子
+    const existingIndex = path.findIndex(p => p.row === row && p.col === col);
+    if (existingIndex !== -1) {
+      // 如果回到了之前的格子，删除从那个点之后的所有路径
+      const newPath = path.slice(0, existingIndex + 1);
+      setPath(newPath);
+      
+      calculatePathData();
+      return;
     }
+
+    // 检查是否已经访问过
+    const index = row * GRID_SIZE + col;
+    if (isInPath(row, col) !== -1) return;
+
+    // 更新路径和访问状态
+    const newPath = [...path, { row, col }];
+    setPath(newPath);
+    
+    calculatePathData();
   };
 
   // 检查是否完成并且正确
@@ -117,7 +130,7 @@ const Game = () => {
 
   // 处理鼠标松开事件
   const handleMouseUp = () => {
-    setIsDragging(false);
+    setIsDrawing(false);
     checkCompletion(path);
   };
 
@@ -229,7 +242,7 @@ const Game = () => {
       <div 
         ref={gridRef}
         className={getGridContainerClassName()}
-        onMouseLeave={() => setIsDragging(false)}
+        onMouseLeave={() => setIsDrawing(false)}
         onMouseUp={handleMouseUp}
         style={{ position: 'relative' }}
       >
