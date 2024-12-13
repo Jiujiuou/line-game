@@ -4,7 +4,7 @@ import { GRID_SIZE } from "../../constant";
 import "./Game.less";
 import Confetti from "../Confetti";
 
-const Game = ({ onComplete }) => {
+const Game = ({ gridSize = 3, hints = {}, onComplete }) => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
   const [isDrawing, setIsDrawing] = useState(false); // 是否正在绘制
   const [path, setPath] = useState([]); // 当前绘制的路径
@@ -20,8 +20,19 @@ const Game = ({ onComplete }) => {
   }, []);
 
   const init = () => {
-    const solution = getSolution();
-    const grid = generateInitialArray(GRID_SIZE, solution);
+    const grid = [];
+    for (let i = 0; i < gridSize; i++) {
+      const row = [];
+      for (let j = 0; j < gridSize; j++) {
+        const key = `${i}-${j}`;
+        row.push({
+          row: i,
+          col: j,
+          value: hints[key] || 0,
+        });
+      }
+      grid.push(row);
+    }
     setInitialGrid(grid);
     setPath([]);
     setCurrentCell(null);
@@ -51,13 +62,13 @@ const Game = ({ onComplete }) => {
 
   // 检查是否是提示格子
   const isHintCell = (row, col) => {
-    return initialGrid[row][col] !== "*";
+    return initialGrid[row][col].value !== 0;
   };
 
   // 验证提示格子的序号
   const validateHintCell = (row, col, pathNumber) => {
     if (!isHintCell(row, col)) return true;
-    const hintNumber = parseInt(initialGrid[row][col]);
+    const hintNumber = initialGrid[row][col].value;
     const isValid = pathNumber === hintNumber;
     
     // 更新错误状态
@@ -72,6 +83,32 @@ const Game = ({ onComplete }) => {
     });
 
     return isValid;
+  };
+
+  // 验证路径是否正确
+  const validatePath = () => {
+    // 检查是否有重复的数字
+    const pathNumbers = new Map();
+    path.forEach((point, index) => {
+      pathNumbers.set(index + 1, { row: point.row, col: point.col });
+    });
+
+    // 检查所有提示数字
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const value = initialGrid[i][j].value;
+        if (value !== 0) {
+          // 检查提示数字的位置是否与路径匹配
+          const pathPoint = pathNumbers.get(value);
+          if (!pathPoint || pathPoint.row !== i || pathPoint.col !== j) {
+            return false;
+          }
+        }
+      }
+    }
+
+    // 检查路径长度是否覆盖所有格子
+    return path.length === gridSize * gridSize;
   };
 
   // 处理鼠标按下事件
@@ -107,7 +144,7 @@ const Game = ({ onComplete }) => {
     }
 
     // 检查是否已经访问过
-    const index = row * GRID_SIZE + col;
+    const index = row * gridSize + col;
     if (isInPath(row, col) !== -1) return;
 
     // 更新路径和访问状态
@@ -119,13 +156,13 @@ const Game = ({ onComplete }) => {
 
   // 检查是否完成并且正确
   const checkCompletion = (currentPath) => {
-    // 检查是否所有格子都被连接
-    const isAllCellsConnected = currentPath.length === GRID_SIZE * GRID_SIZE;
-    // 检查是否没有错误
-    const hasNoErrors = errors.size === 0;
-    
-    setIsAllConnected(isAllCellsConnected);
-    setIsComplete(isAllCellsConnected && hasNoErrors);
+    if (currentPath.length === gridSize * gridSize) {
+      const isValid = validatePath();
+      setIsComplete(isValid);
+      if (isValid && onComplete) {
+        onComplete();
+      }
+    }
   };
 
   // 处理鼠标松开事件
@@ -137,7 +174,7 @@ const Game = ({ onComplete }) => {
   // 获取格子显示的数字
   const getCellContent = (row, col) => {
     if (isHintCell(row, col)) {
-      return initialGrid[row][col];
+      return initialGrid[row][col].value;
     }
     const pathNumber = getPathNumber(row, col);
     return pathNumber || "";
@@ -183,7 +220,7 @@ const Game = ({ onComplete }) => {
 
     // 生成路径数据
     const pathPoints = path.map(point => {
-      const index = point.row * GRID_SIZE + point.col;
+      const index = point.row * gridSize + point.col;
       const cell = cellArray[index];
       const cellRect = cell.getBoundingClientRect();
       
