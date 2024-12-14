@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { generateInitialArray, getSolution } from "@/utils";
+import {
+  isAdjacent,
+  isHintCell,
+  validateHintCell,
+  calculatePathData,
+} from "@/utils/game";
+import {
+  initAudioContext,
+  playClickSound,
+  playCompleteSound,
+  playErrorSound,
+} from "@/utils/sound";
 import { GRID_SIZE } from "@/constant";
 import Confetti from "@/components/Confetti";
 import styles from "./index.module.less";
@@ -17,64 +29,12 @@ const Game = () => {
 
   const gridRef = useRef(null);
 
-  // 使用 Web Audio API 创建音效
-  const audioContext = useRef(null);
-
+  // 初始化音频上下文
   useEffect(() => {
-    // 初始化 Web Audio API
-    audioContext.current = new (window.AudioContext ||
-      window.webkitAudioContext)();
+    initAudioContext();
   }, []);
 
-  // 播放点击音效
-  const playClickSound = () => {
-    if (!audioContext.current) return;
-
-    const oscillator = audioContext.current.createOscillator();
-    const gainNode = audioContext.current.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.current.destination);
-
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(800, audioContext.current.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContext.current.currentTime + 0.1
-    );
-
-    oscillator.start(audioContext.current.currentTime);
-    oscillator.stop(audioContext.current.currentTime + 0.1);
-  };
-
-  // 播放完成音效
-  const playCompleteSound = () => {
-    if (!audioContext.current) return;
-
-    const oscillator = audioContext.current.createOscillator();
-    const gainNode = audioContext.current.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.current.destination);
-
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(400, audioContext.current.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(
-      800,
-      audioContext.current.currentTime + 0.2
-    );
-
-    gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContext.current.currentTime + 0.3
-    );
-
-    oscillator.start(audioContext.current.currentTime);
-    oscillator.stop(audioContext.current.currentTime + 0.3);
-  };
-
+  // 初始化游戏
   const init = () => {
     const solution = getSolution();
     const grid = generateInitialArray(GRID_SIZE, solution);
@@ -85,14 +45,6 @@ const Game = () => {
     setErrors(new Set());
     setIsComplete(false);
     setIsAllConnected(false);
-  };
-
-  // 检查两个格子是否相邻
-  const isAdjacent = (cell1, cell2) => {
-    if (!cell1 || !cell2) return false;
-    const rowDiff = Math.abs(cell1.row - cell2.row);
-    const colDiff = Math.abs(cell1.col - cell2.col);
-    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
   };
 
   // 检查格子是否已经在路径中
@@ -106,19 +58,12 @@ const Game = () => {
     return index === -1 ? null : index + 1;
   };
 
-  // 检查是否是提示格子
-  const isHintCell = (row, col) => {
-    return initialGrid[row][col] !== "*";
-  };
+  // 验证提示格子的序号并更新错误状态
+  const validateAndUpdateErrors = (row, col, pathNumber) => {
+    if (!isHintCell(initialGrid, row, col)) return true;
 
-  // 验证提示格子的序号
-  const validateHintCell = (row, col, pathNumber) => {
-    if (!isHintCell(row, col)) return true;
+    const isValid = validateHintCell(initialGrid, row, col, pathNumber);
 
-    const hintNumber = parseInt(initialGrid[row][col]);
-    const isValid = pathNumber === hintNumber;
-
-    // 更新错误状态
     setErrors((prev) => {
       const newErrors = new Set(prev);
       if (!isValid) {
@@ -137,18 +82,23 @@ const Game = () => {
     const newCell = { row, col };
 
     setCurrentCell(newCell);
-
     setPath([newCell]);
     setErrors(new Set());
     setIsComplete(false);
     setIsAllConnected(false);
-    validateHintCell(row, col, 1);
-    playClickSound();
-  };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    checkCompletion(path);
+    // 检查第一次点击是否正确
+    if (isHintCell(initialGrid, row, col)) {
+      const hintNumber = parseInt(initialGrid[row][col]);
+      if (hintNumber === 1) {
+        playClickSound(); // 只有点击数字1的格子才播放正常音效
+      } else {
+        playErrorSound(); // 点击其他提示数字的格子播放错误音效
+        validateAndUpdateErrors(row, col, 1);
+      }
+    } else {
+      playClickSound(); // 第一次点击非提示格子也播放错误音效
+    }
   };
 
   const handleMouseEnter = (row, col) => {
@@ -166,11 +116,8 @@ const Game = () => {
       setErrors(() => {
         const newErrors = new Set();
         newPath.forEach((cell, index) => {
-          if (isHintCell(cell.row, cell.col)) {
-            const hintNumber = parseInt(initialGrid[cell.row][cell.col]);
-            if (index + 1 !== hintNumber) {
-              newErrors.add(`${cell.row}-${cell.col}`);
-            }
+          if (isHintCell(initialGrid, cell.row, cell.col)) {
+            validateAndUpdateErrors(cell.row, cell.col, index + 1);
           }
         });
         return newErrors;
@@ -184,12 +131,21 @@ const Game = () => {
     if (isAdjacent(currentCell, newCell)) {
       setPath((prevPath) => {
         const newPath = [...prevPath, newCell];
-        validateHintCell(row, col, newPath.length);
+        const isValid = validateAndUpdateErrors(row, col, newPath.length);
+        if (!isValid) {
+          playErrorSound(); // 在这里播放错误音效
+        } else {
+          playClickSound(); // 只在有效移动时播放点击音效
+        }
         return newPath;
       });
       setCurrentCell(newCell);
-      playClickSound();
     }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    checkCompletion(path);
   };
 
   // 检查是否完成并且正确
@@ -208,7 +164,7 @@ const Game = () => {
 
   // 获取格子显示的数字
   const getCellContent = (row, col) => {
-    if (isHintCell(row, col)) {
+    if (isHintCell(initialGrid, row, col)) {
       return initialGrid[row][col];
     }
     const pathNumber = getPathNumber(row, col);
@@ -218,7 +174,7 @@ const Game = () => {
   // 获取格子的类名
   const getCellClassName = (row, col) => {
     const classes = [styles.gridCell];
-    if (isHintCell(row, col)) {
+    if (isHintCell(initialGrid, row, col)) {
       classes.push(styles.filled);
       if (errors.has(`${row}-${col}`)) {
         classes.push(styles.error);
@@ -241,56 +197,6 @@ const Game = () => {
     return classes.join(" ");
   };
 
-  // 计算路径数据
-  const calculatePathData = () => {
-    if (!gridRef.current || path.length < 2) {
-      setPathData("");
-      return;
-    }
-    // 获取所有格子元素
-    const cells = gridRef.current.getElementsByClassName(styles.gridCell);
-    if (!cells || cells.length === 0) {
-      setPathData("");
-      return;
-    }
-
-    const cellArray = Array.from(cells);
-    const gridRect = gridRef.current.getBoundingClientRect();
-
-    // 生成路径数据
-    const pathPoints = path
-      .map((point) => {
-        const index = point.row * GRID_SIZE + point.col;
-        const cell = cellArray[index];
-        if (!cell) {
-          return null;
-        }
-        const cellRect = cell.getBoundingClientRect();
-
-        // 计算相对于grid的中心点位置
-        return {
-          x: cellRect.left - gridRect.left + cellRect.width / 2,
-          y: cellRect.top - gridRect.top + cellRect.height / 2,
-        };
-      })
-      .filter((point) => point !== null);
-
-    if (pathPoints.length < 2) {
-      setPathData("");
-      return;
-    }
-
-    // 生成 SVG 路径数据
-    let svgPath = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
-
-    for (let i = 1; i < pathPoints.length; i++) {
-      const current = pathPoints[i];
-      svgPath += ` L ${current.x} ${current.y}`;
-    }
-
-    setPathData(svgPath);
-  };
-
   useEffect(() => {
     init();
   }, []);
@@ -298,7 +204,9 @@ const Game = () => {
   useEffect(() => {
     const handleResize = () => {
       if (path.length > 0) {
-        calculatePathData();
+        setPathData(
+          calculatePathData(path, gridRef.current, GRID_SIZE, styles)
+        );
       }
     };
 
@@ -307,7 +215,7 @@ const Game = () => {
   }, [path]);
 
   useEffect(() => {
-    calculatePathData();
+    setPathData(calculatePathData(path, gridRef.current, GRID_SIZE, styles));
   }, [path]);
 
   return (
