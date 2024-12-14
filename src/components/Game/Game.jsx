@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { generateInitialArray, getSolution } from "@/utils";
 import { GRID_SIZE } from "@/constant";
 import Confetti from "@/components/Confetti";
-// import "./Game.less";
 import styles from "./index.module.less";
 
 const Game = () => {
+  // 游戏状态管理
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
   const [isDragging, setIsDragging] = useState(false); // 是否正在拖拽
   const [path, setPath] = useState([]); // 当前绘制的路径
@@ -13,27 +13,67 @@ const Game = () => {
   const [errors, setErrors] = useState(new Set()); // 记录错误的格子位置
   const [isComplete, setIsComplete] = useState(false); // 是否完成并且正确
   const [isAllConnected, setIsAllConnected] = useState(false); // 是否连接所有格子
-  const [pathData, setPathData] = useState("");
+  const [pathData, setPathData] = useState(""); // SVG 路径数据
+
   const gridRef = useRef(null);
 
+  // 使用 Web Audio API 创建音效
+  const audioContext = useRef(null);
+
   useEffect(() => {
-    init();
+    // 初始化 Web Audio API
+    audioContext.current = new (window.AudioContext ||
+      window.webkitAudioContext)();
   }, []);
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (path.length > 0) {
-        calculatePathData();
-      }
-    };
+  // 播放点击音效
+  const playClickSound = () => {
+    if (!audioContext.current) return;
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [path]);
+    const oscillator = audioContext.current.createOscillator();
+    const gainNode = audioContext.current.createGain();
 
-  useEffect(() => {
-    calculatePathData();
-  }, [path]);
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.current.destination);
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(800, audioContext.current.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioContext.current.currentTime + 0.1
+    );
+
+    oscillator.start(audioContext.current.currentTime);
+    oscillator.stop(audioContext.current.currentTime + 0.1);
+  };
+
+  // 播放完成音效
+  const playCompleteSound = () => {
+    if (!audioContext.current) return;
+
+    const oscillator = audioContext.current.createOscillator();
+    const gainNode = audioContext.current.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.current.destination);
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(400, audioContext.current.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      800,
+      audioContext.current.currentTime + 0.2
+    );
+
+    gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioContext.current.currentTime + 0.3
+    );
+
+    oscillator.start(audioContext.current.currentTime);
+    oscillator.stop(audioContext.current.currentTime + 0.3);
+  };
 
   const init = () => {
     const solution = getSolution();
@@ -103,6 +143,7 @@ const Game = () => {
     setIsComplete(false);
     setIsAllConnected(false);
     validateHintCell(row, col, 1);
+    playClickSound();
   };
 
   const handleMouseUp = () => {
@@ -147,6 +188,7 @@ const Game = () => {
         return newPath;
       });
       setCurrentCell(newCell);
+      playClickSound();
     }
   };
 
@@ -159,6 +201,9 @@ const Game = () => {
 
     setIsAllConnected(isAllCellsConnected);
     setIsComplete(isAllCellsConnected && hasNoErrors);
+    if (isAllCellsConnected && hasNoErrors) {
+      playCompleteSound();
+    }
   };
 
   // 获取格子显示的数字
@@ -211,22 +256,24 @@ const Game = () => {
 
     const cellArray = Array.from(cells);
     const gridRect = gridRef.current.getBoundingClientRect();
-    
-    // 生成路径数据
-    const pathPoints = path.map((point) => {
-      const index = point.row * GRID_SIZE + point.col;
-      const cell = cellArray[index];
-      if (!cell) {
-        return null;
-      }
-      const cellRect = cell.getBoundingClientRect();
 
-      // 计算相对于grid的中心点位置
-      return {
-        x: cellRect.left - gridRect.left + cellRect.width / 2,
-        y: cellRect.top - gridRect.top + cellRect.height / 2,
-      };
-    }).filter(point => point !== null);
+    // 生成路径数据
+    const pathPoints = path
+      .map((point) => {
+        const index = point.row * GRID_SIZE + point.col;
+        const cell = cellArray[index];
+        if (!cell) {
+          return null;
+        }
+        const cellRect = cell.getBoundingClientRect();
+
+        // 计算相对于grid的中心点位置
+        return {
+          x: cellRect.left - gridRect.left + cellRect.width / 2,
+          y: cellRect.top - gridRect.top + cellRect.height / 2,
+        };
+      })
+      .filter((point) => point !== null);
 
     if (pathPoints.length < 2) {
       setPathData("");
@@ -243,6 +290,25 @@ const Game = () => {
 
     setPathData(svgPath);
   };
+
+  useEffect(() => {
+    init();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (path.length > 0) {
+        calculatePathData();
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [path]);
+
+  useEffect(() => {
+    calculatePathData();
+  }, [path]);
 
   return (
     <div className={styles.wrapper}>
