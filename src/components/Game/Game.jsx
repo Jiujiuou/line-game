@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { generateInitialArray, getSolution } from "@/utils";
 import { GRID_SIZE } from "@/constant";
 import Confetti from "@/components/Confetti";
@@ -12,6 +12,8 @@ const Game = () => {
   const [errors, setErrors] = useState(new Set()); // 记录错误的格子位置
   const [isComplete, setIsComplete] = useState(false); // 是否完成并且正确
   const [isAllConnected, setIsAllConnected] = useState(false); // 是否连接所有格子
+  const [pathData, setPathData] = useState("");
+  const gridRef = useRef(null);
 
   useEffect(() => {
     init();
@@ -154,14 +156,96 @@ const Game = () => {
     return classes.join(" ");
   };
 
+  // 计算路径数据
+  const calculatePathData = () => {
+    if (!gridRef.current || path.length < 2) {
+      setPathData("");
+      return;
+    }
+    // 获取所有格子元素
+    const cells = gridRef.current.querySelectorAll(".grid-cell");
+    const cellArray = Array.from(cells);
+    const gridRect = gridRef.current.getBoundingClientRect();
+    // 生成路径数据
+    const pathPoints = path.map((point) => {
+      const index = point.row * GRID_SIZE + point.col;
+      const cell = cellArray[index];
+      const cellRect = cell.getBoundingClientRect();
+
+      // 计算相对于grid的中心点位置
+      return {
+        x: cellRect.left - gridRect.left + cellRect.width / 2,
+        y: cellRect.top - gridRect.top + cellRect.height / 2,
+      };
+    });
+    // 生成 SVG 路径数据
+    let svgPath = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+
+    for (let i = 1; i < pathPoints.length; i++) {
+      const current = pathPoints[i];
+      const prev = pathPoints[i - 1];
+
+      // 如果是直线路径
+      if (path[i].row === path[i - 1].row || path[i].col === path[i - 1].col) {
+        svgPath += ` L ${current.x} ${current.y}`;
+      } else {
+        // 使用圆弧连接
+        const radius =
+          Math.min(cellArray[0].offsetWidth, cellArray[0].offsetHeight) / 2;
+
+        // 计算控制点（转角处的中心点）
+        const controlX = path[i - 1].col === path[i].col ? prev.x : current.x;
+        const controlY = path[i - 1].col === path[i].col ? current.y : prev.y;
+
+        // 添加圆弧路径
+        svgPath += ` L ${controlX} ${controlY}`;
+        svgPath += ` A ${radius} ${radius} 0 0 1 ${current.x} ${current.y}`;
+      }
+    }
+    setPathData(svgPath);
+  };
+  // 监听路径变化重新计算路径数据
+  useEffect(() => {
+    calculatePathData();
+  }, [path]);
+  // 监听窗口大小变化重新计算路径
+  useEffect(() => {
+    const handleResize = () => {
+      calculatePathData();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [path]);
   return (
     <div className="wrapper">
       {isComplete && <Confetti isActive={true} />}
       <div
+        ref={gridRef}
         className={getGridContainerClassName()}
         onMouseLeave={() => setIsDragging(false)}
         onMouseUp={handleMouseUp}
+        style={{ position: "relative" }}
       >
+        <svg
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        >
+          <path
+            d={pathData}
+            stroke="#4A90E2"
+            strokeWidth="4"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
         {initialGrid.map((row, rowIndex) => (
           <div className="grid-row" key={rowIndex}>
             {row.map((cell, colIndex) => (
