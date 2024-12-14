@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { generateInitialArray, getSolution } from "@/utils";
 import { GRID_SIZE } from "@/constant";
 import Confetti from "@/components/Confetti";
-import "./Game.less";
+// import "./Game.less";
+import styles from "./index.module.less";
 
 const Game = () => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
@@ -18,6 +19,21 @@ const Game = () => {
   useEffect(() => {
     init();
   }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (path.length > 0) {
+        calculatePathData();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [path]);
+
+  useEffect(() => {
+    calculatePathData();
+  }, [path]);
 
   const init = () => {
     const solution = getSolution();
@@ -156,26 +172,26 @@ const Game = () => {
 
   // 获取格子的类名
   const getCellClassName = (row, col) => {
-    const classes = ["grid-cell"];
+    const classes = [styles.gridCell];
     if (isHintCell(row, col)) {
-      classes.push("filled");
+      classes.push(styles.filled);
       if (errors.has(`${row}-${col}`)) {
-        classes.push("error");
+        classes.push(styles.error);
       }
     } else if (isComplete && isInPath(row, col) !== -1) {
-      classes.push("complete"); // 添加完成状态的类名
+      classes.push(styles.complete); // 添加完成状态的类名
     } else if (isInPath(row, col) !== -1) {
-      classes.push("in-path");
+      classes.push(styles.inPath);
     }
     return classes.join(" ");
   };
 
   // 获取网格容器的类名
   const getGridContainerClassName = () => {
-    const classes = ["grid"];
+    const classes = [styles.grid];
     if (isAllConnected) {
-      classes.push("connected");
-      classes.push(isComplete ? "success" : "error");
+      classes.push(styles.connected);
+      classes.push(isComplete ? styles.success : styles.error);
     }
     return classes.join(" ");
   };
@@ -187,13 +203,22 @@ const Game = () => {
       return;
     }
     // 获取所有格子元素
-    const cells = gridRef.current.querySelectorAll(".grid-cell");
+    const cells = gridRef.current.getElementsByClassName(styles.gridCell);
+    if (!cells || cells.length === 0) {
+      setPathData("");
+      return;
+    }
+
     const cellArray = Array.from(cells);
     const gridRect = gridRef.current.getBoundingClientRect();
+    
     // 生成路径数据
     const pathPoints = path.map((point) => {
       const index = point.row * GRID_SIZE + point.col;
       const cell = cellArray[index];
+      if (!cell) {
+        return null;
+      }
       const cellRect = cell.getBoundingClientRect();
 
       // 计算相对于grid的中心点位置
@@ -201,42 +226,26 @@ const Game = () => {
         x: cellRect.left - gridRect.left + cellRect.width / 2,
         y: cellRect.top - gridRect.top + cellRect.height / 2,
       };
-    });
+    }).filter(point => point !== null);
+
+    if (pathPoints.length < 2) {
+      setPathData("");
+      return;
+    }
 
     // 生成 SVG 路径数据
     let svgPath = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
 
     for (let i = 1; i < pathPoints.length; i++) {
       const current = pathPoints[i];
-      const prev = pathPoints[i - 1];
-
-      // 如果是直线路径
-      if (path[i].row === path[i - 1].row || path[i].col === path[i - 1].col) {
-        svgPath += ` L ${current.x} ${current.y}`;
-      } else {
-        // 使用圆弧连接
-        const radius =
-          Math.min(cellArray[0].offsetWidth, cellArray[0].offsetHeight) / 2;
-
-        // 计算控制点（转角处的中心点）
-        const controlX = path[i - 1].col === path[i].col ? prev.x : current.x;
-        const controlY = path[i - 1].col === path[i].col ? current.y : prev.y;
-
-        // 添加圆弧路径
-        svgPath += ` L ${controlX} ${controlY}`;
-        svgPath += ` A ${radius} ${radius} 0 0 1 ${current.x} ${current.y}`;
-      }
+      svgPath += ` L ${current.x} ${current.y}`;
     }
+
     setPathData(svgPath);
   };
 
-  // 监听路径变化绘制连线
-  useEffect(() => {
-    calculatePathData();
-  }, [path]);
-
   return (
-    <div className="wrapper">
+    <div className={styles.wrapper}>
       {isComplete && <Confetti isActive={true} />}
       <div
         ref={gridRef}
@@ -267,7 +276,7 @@ const Game = () => {
         </svg>
 
         {initialGrid.map((row, rowIndex) => (
-          <div className="grid-row" key={rowIndex}>
+          <div className={styles.gridRow} key={rowIndex}>
             {row.map((cell, colIndex) => (
               <div
                 className={getCellClassName(rowIndex, colIndex)}
