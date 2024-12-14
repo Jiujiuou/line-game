@@ -104,7 +104,21 @@ const Game = () => {
       // 如果回到了之前的格子，删除从那个点之后的所有路径
       const newPath = path.slice(0, existingIndex + 1);
       setPath(newPath);
-      validateHintCell(row, col, newPath.length);
+
+      // 清除所有错误状态，然后重新验证当前路径上的所有提示格子
+      setErrors(() => {
+        const newErrors = new Set();
+        newPath.forEach((cell, index) => {
+          if (isHintCell(cell.row, cell.col)) {
+            const hintNumber = parseInt(initialGrid[cell.row][cell.col]);
+            if (index + 1 !== hintNumber) {
+              newErrors.add(`${cell.row}-${cell.col}`);
+            }
+          }
+        });
+        return newErrors;
+      });
+
       setCurrentCell(newCell);
       return;
     }
