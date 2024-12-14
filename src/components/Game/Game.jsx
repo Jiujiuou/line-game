@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { generateInitialArray, getSolution } from "../../utils";
-import { GRID_SIZE } from "../../constant";
+import React, { useState, useEffect } from "react";
+import { generateInitialArray, getSolution } from "@/utils";
+import { GRID_SIZE } from "@/constant";
+import Confetti from "@/components/Confetti";
 import "./Game.less";
-import Confetti from "../Confetti";
 
 const Game = () => {
   const [initialGrid, setInitialGrid] = useState([]); // 初始网格状态
@@ -38,7 +38,7 @@ const Game = () => {
 
   // 检查格子是否已经在路径中
   const isInPath = (row, col) => {
-    return path.findIndex(cell => cell.row === row && cell.col === col);
+    return path.findIndex((cell) => cell.row === row && cell.col === col);
   };
 
   // 获取格子在路径中的序号
@@ -57,9 +57,9 @@ const Game = () => {
     if (!isHintCell(row, col)) return true;
     const hintNumber = parseInt(initialGrid[row][col]);
     const isValid = pathNumber === hintNumber;
-    
+
     // 更新错误状态
-    setErrors(prev => {
+    setErrors((prev) => {
       const newErrors = new Set(prev);
       if (!isValid) {
         newErrors.add(`${row}-${col}`);
@@ -93,7 +93,7 @@ const Game = () => {
 
     // 检查是否与当前格子相邻
     if (isAdjacent(currentCell, newCell)) {
-      setPath(prevPath => {
+      setPath((prevPath) => {
         const newPath = [...prevPath, newCell];
         validateHintCell(row, col, newPath.length);
         return newPath;
@@ -108,7 +108,7 @@ const Game = () => {
     const isAllCellsConnected = currentPath.length === GRID_SIZE * GRID_SIZE;
     // 检查是否没有错误
     const hasNoErrors = errors.size === 0;
-    
+
     setIsAllConnected(isAllCellsConnected);
     setIsComplete(isAllCellsConnected && hasNoErrors);
   };
@@ -157,7 +157,7 @@ const Game = () => {
   return (
     <div className="wrapper">
       {isComplete && <Confetti isActive={true} />}
-      <div 
+      <div
         className={getGridContainerClassName()}
         onMouseLeave={() => setIsDragging(false)}
         onMouseUp={handleMouseUp}
