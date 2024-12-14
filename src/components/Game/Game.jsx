@@ -22,6 +22,7 @@ const Game = () => {
   const init = () => {
     const solution = getSolution();
     const grid = generateInitialArray(GRID_SIZE, solution);
+
     setInitialGrid(grid);
     setPath([]);
     setCurrentCell(null);
@@ -57,6 +58,7 @@ const Game = () => {
   // 验证提示格子的序号
   const validateHintCell = (row, col, pathNumber) => {
     if (!isHintCell(row, col)) return true;
+
     const hintNumber = parseInt(initialGrid[row][col]);
     const isValid = pathNumber === hintNumber;
 
@@ -74,11 +76,12 @@ const Game = () => {
     return isValid;
   };
 
-  // 处理鼠标按下事件
   const handleMouseDown = (row, col) => {
     setIsDragging(true);
     const newCell = { row, col };
+
     setCurrentCell(newCell);
+
     setPath([newCell]);
     setErrors(new Set());
     setIsComplete(false);
@@ -86,12 +89,25 @@ const Game = () => {
     validateHintCell(row, col, 1);
   };
 
-  // 处理鼠标移动事件
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    checkCompletion(path);
+  };
+
   const handleMouseEnter = (row, col) => {
     if (!isDragging) return;
 
     const newCell = { row, col };
-    if (isInPath(row, col) !== -1) return; // 如果格子已在路径中，忽略
+    const existingIndex = path.findIndex((p) => p.row === row && p.col === col);
+
+    if (existingIndex !== -1) {
+      // 如果回到了之前的格子，删除从那个点之后的所有路径
+      const newPath = path.slice(0, existingIndex + 1);
+      setPath(newPath);
+      validateHintCell(row, col, newPath.length);
+      setCurrentCell(newCell);
+      return;
+    }
 
     // 检查是否与当前格子相邻
     if (isAdjacent(currentCell, newCell)) {
@@ -113,12 +129,6 @@ const Game = () => {
 
     setIsAllConnected(isAllCellsConnected);
     setIsComplete(isAllCellsConnected && hasNoErrors);
-  };
-
-  // 处理鼠标松开事件
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    checkCompletion(path);
   };
 
   // 获取格子显示的数字
@@ -178,6 +188,7 @@ const Game = () => {
         y: cellRect.top - gridRect.top + cellRect.height / 2,
       };
     });
+
     // 生成 SVG 路径数据
     let svgPath = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
 
@@ -204,18 +215,12 @@ const Game = () => {
     }
     setPathData(svgPath);
   };
-  // 监听路径变化重新计算路径数据
+
+  // 监听路径变化绘制连线
   useEffect(() => {
     calculatePathData();
   }, [path]);
-  // 监听窗口大小变化重新计算路径
-  useEffect(() => {
-    const handleResize = () => {
-      calculatePathData();
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [path]);
+
   return (
     <div className="wrapper">
       {isComplete && <Confetti isActive={true} />}
@@ -246,6 +251,7 @@ const Game = () => {
             strokeLinejoin="round"
           />
         </svg>
+
         {initialGrid.map((row, rowIndex) => (
           <div className="grid-row" key={rowIndex}>
             {row.map((cell, colIndex) => (
